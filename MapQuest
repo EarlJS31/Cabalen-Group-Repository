@@ -1,15 +1,13 @@
-/// UI Upgrade
+//UI CHANGE
 
 import requests
 import urllib.parse
 from colorama import init, Fore, Style
 
-# Initialize colorama
+
 init(autoreset=True)
 
-
 key = "52e25290-c412-4b79-8f13-1c81ad58e97b"
-
 
 route_url = "https://graphhopper.com/api/1/route?"
 
@@ -54,31 +52,35 @@ def geocoding(location, key):
 
 while True:
     print("\n" + Fore.GREEN + "+++++++++++++++++++++++++++++++++++++++++++++")
-    print(Fore.WHITE + "Vehicle profiles available on Graphhopper:")
+    print(Fore.WHITE + "Travel options available on Graphhopper:")
     print(Fore.GREEN + "+++++++++++++++++++++++++++++++++++++++++++++")
     print(Fore.WHITE + "car, bike, foot")
     print(Fore.GREEN + "+++++++++++++++++++++++++++++++++++++++++++++")
 
     profile = ["car", "bike", "foot"]
-    vehicle = input(Fore.WHITE + "Enter a vehicle profile from the list above: ")
+    vehicle = input(Fore.WHITE + "Enter your method of travel: ").lower().strip()
+    print()  # spacing after vehicle input
 
-    if vehicle.lower() in ["quit", "q"]:
+    if vehicle in ["quit", "q"]:
         break
     elif vehicle not in profile:
-        print(Fore.RED + "No valid vehicle profile was entered. Using the car profile.")
+        print(Fore.RED + "No valid option was entered. Defaulting to Car.\n")
         vehicle = "car"
 
     loc1 = input(Fore.WHITE + "Starting Location: ")
+    print()  # spacing after start location
     if loc1.lower() in ["quit", "q"]:
         break
     orig = geocoding(loc1, key)
 
     loc2 = input(Fore.WHITE + "Destination: ")
+    print()  # spacing after destination
     if loc2.lower() in ["quit", "q"]:
         break
     dest = geocoding(loc2, key)
 
     step_by_step = input(Fore.WHITE + "Would you like step-by-step navigation? (y/n): ").lower().startswith("y")
+    print()  # spacing before results
 
     print(Fore.GREEN + "=================================================")
 
@@ -123,7 +125,52 @@ while True:
                     f"({distance/1000:.1f} km / {distance/1000/1.61:.1f} miles)"
                 )
 
-                print(instruction_text)
+                # pick arrow based on instruction
+                text_lower = path.lower()
+                if "left" in text_lower:
+                    arrow = Fore.GREEN + """
+<<<<<
+<<    
+<<<   
+<<    
+<<<<<
+"""
+                elif "right" in text_lower:
+                    arrow = Fore.GREEN + """
+>>>>>
+    >>
+      >>
+    >>
+>>>>>
+"""
+                elif "u-turn" in text_lower:
+                    arrow = Fore.GREEN + """
+  ^  
+ ^^^ 
+  ^  
+<<< >>>
+  ^  
+  ^  
+"""
+                elif "straight" in text_lower or "continue" in text_lower:
+                    arrow = Fore.GREEN + """
+  ^  
+ ^^^ 
+  ^  
+  ^  
+  ^  
+"""
+                else:
+                    # default right arrow
+                    arrow = Fore.GREEN + """
+>>>>>
+    >>
+      >>
+    >>
+>>>>>
+"""
+
+                print("\n\n" + arrow + "\n" + instruction_text)  # show arrow before instruction
 
                 if step_by_step:
                     input(Fore.GREEN + "Press Enter to continue...")
