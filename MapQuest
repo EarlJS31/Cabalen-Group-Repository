@@ -1,5 +1,10 @@
 import requests
 import urllib.parse
+import keyboard  # for ESC key detection
+from colorama import init, Fore, Style
+
+
+init(autoreset=True)
 
 
 key = "52e25290-c412-4b79-8f13-1c81ad58e97b"
@@ -33,45 +38,65 @@ def geocoding(location, key):
         else:
             new_loc = name
 
-        print(f"Geocoding API URL for {new_loc} (Location Type: {value})\n{url}")
+        print(Fore.GREEN + f"Geocoding API URL for {new_loc} (Location Type: {value})\n{url}")
     else:
         lat = "null"
         lng = "null"
         new_loc = location
         if json_status != 200:
-            print("Geocode API status: " + str(json_status) +
+            print(Fore.RED + "Geocode API status: " + str(json_status) +
                   "\nError message: " + json_data.get("message", "Unknown error"))
 
     return json_status, lat, lng, new_loc
 
 
+def print_help():
+    print(Fore.GREEN + "\n================= HELP GUIDE =================")
+    print(Fore.WHITE + "• Enter 'car', 'bike', or 'foot' to select travel method.")
+    print("• Enter 'help' to see this guide again.")
+    print("• Enter 'q' or 'quit' anytime to exit.")
+    print("• After entering origin/destination, choose step-by-step mode (y/n).")
+    print("• "+ Fore.WHITE + " Press ESC anytime during directions to cancel trip.")
+    print(Fore.GREEN + "==============================================\n")
+
+
 while True:
-    print("\n+++++++++++++++++++++++++++++++++++++++++++++")
-    print("Vehicle profiles available on Graphhopper:")
-    print("+++++++++++++++++++++++++++++++++++++++++++++")
-    print("car, bike, foot")
-    print("+++++++++++++++++++++++++++++++++++++++++++++")
+    print("\n" + Fore.GREEN + "+++++++++++++++++++++++++++++++++++++++++++++")
+    print(Fore.WHITE + "Travel options available on Graphhopper:")
+    print(Fore.GREEN + "+++++++++++++++++++++++++++++++++++++++++++++")
+    print(Fore.WHITE + "car, bike, foot")
+    print(Fore.LIGHTBLACK_EX + "(or type 'help' for guidance)")
+    print(Fore.GREEN + "+++++++++++++++++++++++++++++++++++++++++++++")
 
     profile = ["car", "bike", "foot"]
-    vehicle = input("Enter a vehicle profile from the list above: ")
+    vehicle = input(Fore.WHITE + "Enter your method of travel: ").lower().strip()
+    print()  # spacing after vehicle input
 
-    if vehicle.lower() in ["quit", "q"]:
+    if vehicle in ["quit", "q"]:
         break
+    elif vehicle == "help":
+        print_help()
+        continue
     elif vehicle not in profile:
-        print("No valid vehicle profile was entered. Using the car profile.")
+        print(Fore.RED + "No valid option was entered. Defaulting to Car.\n")
         vehicle = "car"
 
-    loc1 = input("Starting Location: ")
+    loc1 = input(Fore.WHITE + "Starting Location: ")
+    print()  # spacing after start location
     if loc1.lower() in ["quit", "q"]:
         break
     orig = geocoding(loc1, key)
 
-    loc2 = input("Destination: ")
+    loc2 = input(Fore.WHITE + "Destination: ")
+    print()  # spacing after destination
     if loc2.lower() in ["quit", "q"]:
         break
     dest = geocoding(loc2, key)
 
-    print("=================================================")
+    step_by_step = input(Fore.WHITE + "Would you like step-by-step navigation? (y/n): ").lower().startswith("y")
+    print()  # spacing before results
+
+    print(Fore.GREEN + "=================================================")
 
     if orig[0] == 200 and dest[0] == 200:
         op = "&point=" + str(orig[1]) + "%2C" + str(orig[2])
@@ -81,10 +106,11 @@ while True:
         paths_status = requests.get(paths_url).status_code
         paths_data = requests.get(paths_url).json()
 
-        print("Routing API Status: " + str(paths_status) + "\nRouting API URL:\n" + paths_url)
-        print("=================================================")
-        print("Directions from " + orig[3] + " to " + dest[3] + " by " + vehicle)
-        print("=================================================")
+        print(Fore.GREEN + "Routing API Status: " + str(paths_status) + "\nRouting API URL:\n" + paths_url)
+        print(Fore.GREEN + "=================================================")
+        print(Fore.WHITE + "Directions from " + Fore.GREEN + "START: " + Fore.WHITE + orig[3] +
+              Fore.GREEN + " → END: " + Fore.WHITE + dest[3] + Fore.GREEN + f" by {vehicle}")
+        print(Fore.GREEN + "=================================================")
 
         if paths_status == 200:
             miles = (paths_data["paths"][0]["distance"]) / 1000 / 1.61
@@ -94,16 +120,89 @@ while True:
             minutes = int(paths_data["paths"][0]["time"] / 1000 / 60 % 60)
             hr = int(paths_data["paths"][0]["time"] / 1000 / 60 / 60)
 
-            print("Distance Traveled: {0:.1f} miles / {1:.1f} km".format(miles, km))
-            print("Trip Duration: {0:02d}:{1:02d}:{2:02d}".format(hr, minutes, sec))
-            print("=================================================")
+            print(Fore.WHITE + "Distance Traveled: " + Fore.GREEN +
+                  "{0:.1f} miles / {1:.1f} km".format(miles, km))
+            print(Fore.WHITE + "Trip Duration: " + Fore.GREEN +
+                  "{0:02d}:{1:02d}:{2:02d}".format(hr, minutes, sec))
+            print(Fore.GREEN + "=================================================")
 
-            for each in range(len(paths_data["paths"][0]["instructions"])):
-                path = paths_data["paths"][0]["instructions"][each]["text"]
-                distance = paths_data["paths"][0]["instructions"][each]["distance"]
-                print("{0} ( {1:.1f} km / {2:.1f} miles )".format(path, distance / 1000, distance / 1000 / 1.61))
+            # Show numbered instructions
+            instructions = paths_data["paths"][0]["instructions"]
+            for idx, step in enumerate(instructions, start=1):
 
-            print("=================================================")
+                # ESC key check: cancel trip immediately
+                if keyboard.is_pressed("esc"):
+                    print(Fore.RED + "\nTrip terminated. Returning to start menu...\n")
+                    break
+
+                path = step["text"]
+                street = step.get("street_name", "")
+                distance = step["distance"]
+                detail = f" via {street}" if street else ""
+
+                instruction_text = (
+                    Fore.WHITE + f"{idx}. {Fore.GREEN}{path}{Fore.WHITE}{detail} "
+                    f"({distance/1000:.1f} km / {distance/1000/1.61:.1f} miles)"
+                )
+
+                # pick arrow based on instruction
+                text_lower = path.lower()
+                if "left" in text_lower:
+                    arrow = Fore.GREEN + """
+   <<<<<
+  <<    
+<<   
+  <<    
+   <<<<<
+"""
+                elif "right" in text_lower:
+                    arrow = Fore.GREEN + """
+>>>>>
+    >>
+      >>
+    >>
+>>>>>
+"""
+                elif "u-turn" in text_lower:
+                    arrow = Fore.GREEN + """
+  ^^^^^^^^    
+  ^      ^
+  ^      ^
+  ^      ^
+  ^      ^
+"""
+                elif "straight" in text_lower or "continue" in text_lower:
+                    arrow = Fore.GREEN + """
+   ^  
+ ^ ^ ^ 
+   ^  
+   ^  
+   ^  
+"""
+                else:
+                    arrow = Fore.GREEN + """
+>>>>>
+    >>
+      >>
+    >>
+>>>>>
+"""
+
+                print("\n\n" + arrow + "\n" + instruction_text)  
+
+                if step_by_step:
+                    print(Fore.GREEN + "Press Enter to continue...")
+                    while True:
+                        if keyboard.is_pressed("enter"):
+                            break
+                        elif keyboard.is_pressed("esc"):
+                            print(Fore.RED + "\nTrip terminated. Returning...\n")
+                            step_by_step = False  # reset
+                            instructions = []     # stop showing directions
+                            break
+
+
+            print(Fore.GREEN + "=================================================")
         else:
-            print("Error message: " + paths_data.get("message", "Unknown error"))
-            print("*************************************************")
+            print(Fore.RED + "Error message: " + paths_data.get("message", "Unknown error"))
+            print(Fore.RED + "*************************************************")
