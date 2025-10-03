@@ -1,109 +1,189 @@
 import requests
 import urllib.parse
+import tkinter as tk
+from tkinter import messagebox, scrolledtext
 
+# GraphHopper API key (static)
+API_KEY = "52e25290-c412-4b79-8f13-1c81ad58e97b"
+ROUTE_URL = "https://graphhopper.com/api/1/route?"
+GEOCODE_URL = "https://graphhopper.com/api/1/geocode?"
 
-key = "52e25290-c412-4b79-8f13-1c81ad58e97b"
+# Geocoding function
+def geocode(location):
+    url = GEOCODE_URL + urllib.parse.urlencode({"q": location, "limit": "1", "key": API_KEY})
+    resp = requests.get(url)
+    data = resp.json()
 
-route_url = "https://graphhopper.com/api/1/route?"
-
-def geocoding(location, key):
-    while location == "":
-        location = input("Enter the location again: ")
-
-    geocode_url = "https://graphhopper.com/api/1/geocode?"
-    url = geocode_url + urllib.parse.urlencode({"q": location, "limit": "1", "key": key})
-
-    replydata = requests.get(url)
-    json_data = replydata.json()
-    json_status = replydata.status_code
-
-    if json_status == 200 and len(json_data["hits"]) != 0:
-        lat = json_data["hits"][0]["point"]["lat"]
-        lng = json_data["hits"][0]["point"]["lng"]
-        name = json_data["hits"][0]["name"]
-        value = json_data["hits"][0]["osm_value"]
-
-        country = json_data["hits"][0].get("country", "")
-        state = json_data["hits"][0].get("state", "")
-
-        if state and country:
-            new_loc = f"{name}, {state}, {country}"
-        elif country:
-            new_loc = f"{name}, {country}"
-        else:
-            new_loc = name
-
-        print(f"Geocoding API URL for {new_loc} (Location Type: {value})\n{url}")
+    if resp.status_code == 200 and len(data["hits"]) > 0:
+        lat = data["hits"][0]["point"]["lat"]
+        lng = data["hits"][0]["point"]["lng"]
+        name = data["hits"][0]["name"]
+        country = data["hits"][0].get("country", "")
+        state = data["hits"][0].get("state", "")
+        new_loc = f"{name}, {state}, {country}".strip(", ")
+        return lat, lng, new_loc
     else:
-        lat = "null"
-        lng = "null"
-        new_loc = location
-        if json_status != 200:
-            print("Geocode API status: " + str(json_status) +
-                  "\nError message: " + json_data.get("message", "Unknown error"))
+        messagebox.showerror("Geocoding Error", f"Could not find location: {location}")
+        return None, None, location
 
-    return json_status, lat, lng, new_loc
+# Show Help popup
+def show_help():
+    help_text = """
+MapQuest Navigation Help:
 
+1. Enter your starting location and destination.
+2. Choose your travel mode (Car, Bike, or Foot).
+3. Tick 'Step-by-step mode' if you want to view one instruction at a time.
+4. Click 'Start Navigation' to begin.
+5. In step-by-step mode, use 'Next Step' to move through directions.
+6. At the end, the full list of instructions will appear.
+7. Press 'Close Trip' to exit directions.
+"""
+    messagebox.showinfo("Help Guide", help_text)
 
-while True:
-    print("\n+++++++++++++++++++++++++++++++++++++++++++++")
-    print("Vehicle profiles available on Graphhopper:")
-    print("+++++++++++++++++++++++++++++++++++++++++++++")
-    print("car, bike, foot")
-    print("+++++++++++++++++++++++++++++++++++++++++++++")
+# Show the full list of directions in a popup
+def show_full_list(orig, dest, vehicle, distance_km, hours, minutes, instructions):
+    full_win = tk.Toplevel(root)
+    full_win.title(f"Full Directions: {orig} → {dest}")
 
-    profile = ["car", "bike", "foot"]
-    vehicle = input("Enter a vehicle profile from the list above: ")
+    info = f"Travel by {vehicle}\nDistance: {distance_km:.1f} km\nDuration: {hours:02d}:{minutes:02d}\n\n"
 
-    if vehicle.lower() in ["quit", "q"]:
-        break
-    elif vehicle not in profile:
-        print("No valid vehicle profile was entered. Using the car profile.")
-        vehicle = "car"
+    text_area = scrolledtext.ScrolledText(full_win, wrap=tk.WORD, width=60, height=20)
+    text_area.pack(padx=10, pady=10)
+    text_area.insert(tk.END, info)
 
-    loc1 = input("Starting Location: ")
-    if loc1.lower() in ["quit", "q"]:
-        break
-    orig = geocoding(loc1, key)
+    for idx, step in enumerate(instructions, 1):
+        path = step["text"]
+        dist = step["distance"] / 1000
 
-    loc2 = input("Destination: ")
-    if loc2.lower() in ["quit", "q"]:
-        break
-    dest = geocoding(loc2, key)
-
-    print("=================================================")
-
-    if orig[0] == 200 and dest[0] == 200:
-        op = "&point=" + str(orig[1]) + "%2C" + str(orig[2])
-        dp = "&point=" + str(dest[1]) + "%2C" + str(dest[2])
-
-        paths_url = route_url + urllib.parse.urlencode({"key": key, "vehicle": vehicle}) + op + dp
-        paths_status = requests.get(paths_url).status_code
-        paths_data = requests.get(paths_url).json()
-
-        print("Routing API Status: " + str(paths_status) + "\nRouting API URL:\n" + paths_url)
-        print("=================================================")
-        print("Directions from " + orig[3] + " to " + dest[3] + " by " + vehicle)
-        print("=================================================")
-
-        if paths_status == 200:
-            miles = (paths_data["paths"][0]["distance"]) / 1000 / 1.61
-            km = (paths_data["paths"][0]["distance"]) / 1000
-
-            sec = int(paths_data["paths"][0]["time"] / 1000 % 60)
-            minutes = int(paths_data["paths"][0]["time"] / 1000 / 60 % 60)
-            hr = int(paths_data["paths"][0]["time"] / 1000 / 60 / 60)
-
-            print("Distance Traveled: {0:.1f} miles / {1:.1f} km".format(miles, km))
-            print("Trip Duration: {0:02d}:{1:02d}:{2:02d}".format(hr, minutes, sec))
-            print("=================================================")
-
-            for each in range(len(paths_data["paths"][0]["instructions"])):
-                path = paths_data["paths"][0]["instructions"][each]["text"]
-                distance = paths_data["paths"][0]["instructions"][each]["distance"]
-                print("{0} ( {1:.1f} km / {2:.1f} miles )".format(path, distance / 1000, distance / 1000 / 1.61))
-
-            print("=================================================")
+        # ASCII arrows
+        path_lower = path.lower()
+        if "left" in path_lower:
+            arrow = "←"
+        elif "right" in path_lower:
+            arrow = "→"
+        elif "u-turn" in path_lower:
+            arrow = "↻"
+        elif "straight" in path_lower or "continue" in path_lower:
+            arrow = "↑"
         else:
-            print("Error message: " + paths_data.get("message", "Unknown error"))
-            print("*************************************************")
+            arrow = "•"
+
+        text_area.insert(tk.END, f"{idx}. {arrow} {path} ({dist:.1f} km)\n")
+
+    text_area.config(state=tk.DISABLED)
+    tk.Button(full_win, text="Close Trip", command=full_win.destroy, bg="red", fg="white").pack(pady=5)
+
+# Main navigation function
+def start_navigation():
+    vehicle = vehicle_var.get()
+    loc1 = start_entry.get()
+    loc2 = dest_entry.get()
+
+    lat1, lng1, orig = geocode(loc1)
+    lat2, lng2, dest = geocode(loc2)
+
+    if not lat1 or not lat2:
+        return
+
+    op = "&point=" + str(lat1) + "%2C" + str(lng1)
+    dp = "&point=" + str(lat2) + "%2C" + str(lng2)
+
+    url = ROUTE_URL + urllib.parse.urlencode({"key": API_KEY, "vehicle": vehicle}) + op + dp
+    resp = requests.get(url)
+    data = resp.json()
+
+    if resp.status_code != 200:
+        messagebox.showerror("Routing Error", data.get("message", "Unknown error"))
+        return
+
+    distance_km = data["paths"][0]["distance"] / 1000
+    time_ms = data["paths"][0]["time"]
+    minutes = int(time_ms / 1000 / 60 % 60)
+    hours = int(time_ms / 1000 / 60 / 60)
+
+    instructions = data["paths"][0]["instructions"]
+
+    if step_mode_var.get():  # Step-by-step mode
+        nav_win = tk.Toplevel(root)
+        nav_win.title(f"Directions: {orig} → {dest}")
+
+        info = f"Travel by {vehicle}\nDistance: {distance_km:.1f} km\nDuration: {hours:02d}:{minutes:02d}\n\n"
+
+        info_label = tk.Label(nav_win, text=info, justify="left", font=("Consolas", 12))
+        info_label.pack(padx=10, pady=5)
+
+        direction_label = tk.Label(nav_win, text="", justify="center", font=("Consolas", 16, "bold"))
+        direction_label.pack(pady=10)
+
+        step_index = tk.IntVar(value=0)
+
+        def show_step():
+            idx = step_index.get()
+            if idx < len(instructions):
+                step = instructions[idx]
+                path = step["text"]
+                dist = step["distance"] / 1000
+
+                # Large ASCII arrows
+                path_lower = path.lower()
+                if "left" in path_lower:
+                    arrow = "←"
+                elif "right" in path_lower:
+                    arrow = "→"
+                elif "u-turn" in path_lower:
+                    arrow = "↻"
+                elif "straight" in path_lower or "continue" in path_lower:
+                    arrow = "↑"
+                else:
+                    arrow = "•"
+
+                direction_label.config(text=f"{arrow}\n{path}\n({dist:.1f} km)")
+                step_index.set(idx + 1)
+            else:
+                direction_label.config(text="Trip complete ✅")
+                # After trip ends → show full list
+                show_full_list(orig, dest, vehicle, distance_km, hours, minutes, instructions)
+
+        next_btn = tk.Button(nav_win, text="Next Step", command=show_step, bg="blue", fg="white")
+        next_btn.pack(pady=5)
+
+        tk.Button(nav_win, text="Close Trip", command=nav_win.destroy, bg="red", fg="white").pack(pady=5)
+
+        show_step()  # show first step immediately
+
+    else:  # Full list mode only
+        show_full_list(orig, dest, vehicle, distance_km, hours, minutes, instructions)
+
+# ===============================
+# GUI Setup
+# ===============================
+root = tk.Tk()
+root.title("MapQuest")
+
+# Title
+tk.Label(root, text="MapQuest", font=("Arial", 16, "bold")).grid(row=0, column=0, columnspan=2, pady=5)
+
+# Inputs
+tk.Label(root, text="Starting Location:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+start_entry = tk.Entry(root, width=40)
+start_entry.grid(row=1, column=1, padx=5, pady=5)
+
+tk.Label(root, text="Destination:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+dest_entry = tk.Entry(root, width=40)
+dest_entry.grid(row=2, column=1, padx=5, pady=5)
+
+tk.Label(root, text="Travel Mode:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
+vehicle_var = tk.StringVar(value="Car")
+vehicle_menu = tk.OptionMenu(root, vehicle_var, "Car", "Bike", "Foot")
+vehicle_menu.grid(row=3, column=1, padx=5, pady=5, sticky="w")
+
+# Step-by-step option
+step_mode_var = tk.BooleanVar(value=False)
+tk.Checkbutton(root, text="Step-by-step mode", variable=step_mode_var).grid(row=4, column=0, columnspan=2, pady=5)
+
+# Buttons
+tk.Button(root, text="Start Navigation", command=start_navigation, bg="green", fg="white").grid(row=5, column=0, columnspan=2, pady=5)
+tk.Button(root, text="Help", command=show_help).grid(row=6, column=0, columnspan=2, pady=5)
+
+root.mainloop()
