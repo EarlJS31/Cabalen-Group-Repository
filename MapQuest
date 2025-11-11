@@ -1,189 +1,332 @@
-import requests
-import urllib.parse
-import tkinter as tk
-from tkinter import messagebox, scrolledtext
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Navigation App — GraphHopper</title>
+  <style>
+    :root{
+      --green: #0b7a3a; /* heavy green */
+      --light-green: #6cd37a;
+      --white: #ffffff;
+      --yellow: #ffd700;
+      --muted: #f6f6f6;
+      --box-shadow: 0 6px 18px rgba(11,122,58,0.12);
+      --mono: "Courier New", Courier, monospace;
+    }
 
-# GraphHopper API key (static)
-API_KEY = "52e25290-c412-4b79-8f13-1c81ad58e97b"
-ROUTE_URL = "https://graphhopper.com/api/1/route?"
-GEOCODE_URL = "https://graphhopper.com/api/1/geocode?"
+    html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background:var(--white); color:#0b3b20}
+    .app{max-width:980px;margin:28px auto;padding:18px;border-radius:12px;background:linear-gradient(180deg,var(--muted),var(--white));box-shadow:var(--box-shadow)}
 
-# Geocoding function
-def geocode(location):
-    url = GEOCODE_URL + urllib.parse.urlencode({"q": location, "limit": "1", "key": API_KEY})
-    resp = requests.get(url)
-    data = resp.json()
+    header{display:flex;align-items:center;gap:14px}
+    header .logo{width:56px;height:56px;border-radius:10px;background:var(--green);display:flex;align-items:center;justify-content:center;color:var(--white);font-weight:700;font-size:20px}
+    header h1{margin:0;font-size:20px}
 
-    if resp.status_code == 200 and len(data["hits"]) > 0:
-        lat = data["hits"][0]["point"]["lat"]
-        lng = data["hits"][0]["point"]["lng"]
-        name = data["hits"][0]["name"]
-        country = data["hits"][0].get("country", "")
-        state = data["hits"][0].get("state", "")
-        new_loc = f"{name}, {state}, {country}".strip(", ")
-        return lat, lng, new_loc
-    else:
-        messagebox.showerror("Geocoding Error", f"Could not find location: {location}")
-        return None, None, location
+    .controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
+    .card{background:var(--white);padding:12px;border-radius:10px;border:2px solid rgba(11,122,58,0.06)}
 
-# Show Help popup
-def show_help():
-    help_text = """
-MapQuest Navigation Help:
+    label{display:block;font-size:13px;color:#134a28;margin-bottom:6px}
+    input[type=text], select{width:100%;padding:10px;border-radius:8px;border:1px solid #dfeee0}
 
-1. Enter your starting location and destination.
-2. Choose your travel mode (Car, Bike, or Foot).
-3. Tick 'Step-by-step mode' if you want to view one instruction at a time.
-4. Click 'Start Navigation' to begin.
-5. In step-by-step mode, use 'Next Step' to move through directions.
-6. At the end, the full list of instructions will appear.
-7. Press 'Close Trip' to exit directions.
-"""
-    messagebox.showinfo("Help Guide", help_text)
+    .actions{display:flex;gap:8px;margin-top:8px}
+    button{background:var(--green);color:var(--white);border:none;padding:10px 12px;border-radius:8px;cursor:pointer}
+    button.secondary{background:var(--white);color:var(--green);border:2px solid var(--green)}
+    .accent{background:var(--yellow);color:#3b2b00;padding:6px 8px;border-radius:6px;font-weight:600}
 
-# Show the full list of directions in a popup
-def show_full_list(orig, dest, vehicle, distance_km, hours, minutes, instructions):
-    full_win = tk.Toplevel(root)
-    full_win.title(f"Full Directions: {orig} → {dest}")
+    .output{margin-top:18px;display:flex;gap:12px}
+    .left{flex:1}
+    .right{width:360px}
 
-    info = f"Travel by {vehicle}\nDistance: {distance_km:.1f} km\nDuration: {hours:02d}:{minutes:02d}\n\n"
+    .summary{padding:12px;border-radius:10px;background:linear-gradient(90deg,var(--light-green),var(--green));color:var(--white);font-weight:600}
 
-    text_area = scrolledtext.ScrolledText(full_win, wrap=tk.WORD, width=60, height=20)
-    text_area.pack(padx=10, pady=10)
-    text_area.insert(tk.END, info)
+    .instructions{margin-top:12px;display:flex;flex-direction:column;gap:10px}
 
-    for idx, step in enumerate(instructions, 1):
-        path = step["text"]
-        dist = step["distance"] / 1000
+    /* boxed instruction (imitates the terminal box) */
+    .inst-box{font-family:var(--mono);background:linear-gradient(180deg,rgba(11,122,58,0.08),rgba(11,122,58,0.02));border-left:6px solid var(--green);padding:12px;border-radius:10px}
+    .arrow{white-space:pre;font-family:var(--mono);color:var(--green);font-size:13px}
+    .inst-text{margin-top:8px;color:#063d1d}
 
-        # ASCII arrows
-        path_lower = path.lower()
-        if "left" in path_lower:
-            arrow = "←"
-        elif "right" in path_lower:
-            arrow = "→"
-        elif "u-turn" in path_lower:
-            arrow = "↻"
-        elif "straight" in path_lower or "continue" in path_lower:
-            arrow = "↑"
-        else:
-            arrow = "•"
+    .help{margin-top:12px;padding:10px;border-radius:8px;background:#fffbe6;border:1px solid #fff1b8}
 
-        text_area.insert(tk.END, f"{idx}. {arrow} {path} ({dist:.1f} km)\n")
+    .hidden{display:none}
 
-    text_area.config(state=tk.DISABLED)
-    tk.Button(full_win, text="Close Trip", command=full_win.destroy, bg="red", fg="white").pack(pady=5)
+    footer{margin-top:14px;font-size:13px;color:#4b6b4b}
 
-# Main navigation function
-def start_navigation():
-    vehicle = vehicle_var.get()
-    loc1 = start_entry.get()
-    loc2 = dest_entry.get()
+    @media (max-width:900px){.controls{grid-template-columns:1fr;}.right{width:100%}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo">NH</div>
+      <div>
+        <h1>Navigation App — GraphHopper</h1>
+        <div style="font-size:13px;color:#285231">Step-by-step directions • Press <span class="accent">Esc</span> to cancel • Yellow accents</div>
+      </div>
+    </header>
 
-    lat1, lng1, orig = geocode(loc1)
-    lat2, lng2, dest = geocode(loc2)
+    <div class="controls">
+      <div class="card">
+        <label for="vehicle">Method of travel</label>
+        <select id="vehicle">
+          <option>car</option>
+          <option>bike</option>
+          <option>foot</option>
+        </select>
 
-    if not lat1 or not lat2:
-        return
+        <label for="origin" style="margin-top:10px">Starting location</label>
+        <input id="origin" type="text" placeholder="e.g. University of Santo Tomas, Manila" />
 
-    op = "&point=" + str(lat1) + "%2C" + str(lng1)
-    dp = "&point=" + str(lat2) + "%2C" + str(lng2)
+        <label for="destination" style="margin-top:10px">Destination</label>
+        <input id="destination" type="text" placeholder="e.g. Rizal Park, Manila" />
 
-    url = ROUTE_URL + urllib.parse.urlencode({"key": API_KEY, "vehicle": vehicle}) + op + dp
-    resp = requests.get(url)
-    data = resp.json()
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+          <input id="stepMode" type="checkbox" />
+          <label for="stepMode">Step-by-step navigation</label>
+        </div>
 
-    if resp.status_code != 200:
-        messagebox.showerror("Routing Error", data.get("message", "Unknown error"))
-        return
+        <div class="actions">
+          <button id="go">Get Directions</button>
+          <button class="secondary" id="helpBtn">Help</button>
+          <button class="secondary" id="clearBtn">Clear</button>
+        </div>
 
-    distance_km = data["paths"][0]["distance"] / 1000
-    time_ms = data["paths"][0]["time"]
-    minutes = int(time_ms / 1000 / 60 % 60)
-    hours = int(time_ms / 1000 / 60 / 60)
+        <div class="help" id="helpPanel">
+          <strong>Help Guide</strong>
+          <ul>
+            <li>Enter 'car', 'bike', or 'foot' as travel method.</li>
+            <li>Type origin and destination, then click <em>Get Directions</em>.</li>
+            <li>Toggle Step-by-step to advance with <kbd>Enter</kbd>. Press <kbd>Esc</kbd> anytime to cancel.</li>
+            <li>Errors from the API will be shown below.</li>
+          </ul>
+        </div>
+      </div>
 
-    instructions = data["paths"][0]["instructions"]
+      <div class="card right">
+        <div class="summary" id="summary">No route calculated yet</div>
 
-    if step_mode_var.get():  # Step-by-step mode
-        nav_win = tk.Toplevel(root)
-        nav_win.title(f"Directions: {orig} → {dest}")
+        <div class="instructions" id="instructions" style="max-height:520px;overflow:auto;margin-top:12px">
+          <!-- Instruction boxes will be appended here -->
+        </div>
 
-        info = f"Travel by {vehicle}\nDistance: {distance_km:.1f} km\nDuration: {hours:02d}:{minutes:02d}\n\n"
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button id="prev" class="secondary">Prev</button>
+          <button id="next" class="secondary">Next</button>
+          <button id="cancel" class="secondary">Cancel Trip (Esc)</button>
+        </div>
+      </div>
+    </div>
 
-        info_label = tk.Label(nav_win, text=info, justify="left", font=("Consolas", 12))
-        info_label.pack(padx=10, pady=5)
+    <div class="output left">
+      <div class="card" style="width:100%">
+        <h3 style="margin-top:0">Console / Logs</h3>
+        <pre id="log" style="height:160px;overflow:auto;background:#fbfff9;padding:12px;border-radius:8px;border:1px solid #edf9ee"></pre>
+      </div>
+    </div>
 
-        direction_label = tk.Label(nav_win, text="", justify="center", font=("Consolas", 16, "bold"))
-        direction_label.pack(pady=10)
+    <footer>Created from your Python terminal app — converted to browser UI. GraphHopper API key used from your code. Use responsibly.</footer>
+  </div>
 
-        step_index = tk.IntVar(value=0)
+  <script>
+    // ------------------ CONFIG ------------------
+    const API_KEY = "52e25290-c412-4b79-8f13-1c81ad58e97b"; // taken from your script
+    const GEOCODE_URL = "https://graphhopper.com/api/1/geocode";
+    const ROUTE_URL = "https://graphhopper.com/api/1/route";
 
-        def show_step():
-            idx = step_index.get()
-            if idx < len(instructions):
-                step = instructions[idx]
-                path = step["text"]
-                dist = step["distance"] / 1000
+    // ------------------ UI refs ------------------
+    const vehicleEl = document.getElementById('vehicle');
+    const originEl = document.getElementById('origin');
+    const destEl = document.getElementById('destination');
+    const goBtn = document.getElementById('go');
+    const helpBtn = document.getElementById('helpBtn');
+    const helpPanel = document.getElementById('helpPanel');
+    const clearBtn = document.getElementById('clearBtn');
+    const summaryEl = document.getElementById('summary');
+    const instContainer = document.getElementById('instructions');
+    const logEl = document.getElementById('log');
+    const stepModeEl = document.getElementById('stepMode');
+    const prevBtn = document.getElementById('prev');
+    const nextBtn = document.getElementById('next');
+    const cancelBtn = document.getElementById('cancel');
 
-                # Large ASCII arrows
-                path_lower = path.lower()
-                if "left" in path_lower:
-                    arrow = "←"
-                elif "right" in path_lower:
-                    arrow = "→"
-                elif "u-turn" in path_lower:
-                    arrow = "↻"
-                elif "straight" in path_lower or "continue" in path_lower:
-                    arrow = "↑"
-                else:
-                    arrow = "•"
+    // ------------------ STATE ------------------
+    let instructions = [];
+    let currentIndex = 0;
+    let stepByStep = false;
+    let tripActive = false;
 
-                direction_label.config(text=f"{arrow}\n{path}\n({dist:.1f} km)")
-                step_index.set(idx + 1)
-            else:
-                direction_label.config(text="Trip complete ✅")
-                # After trip ends → show full list
-                show_full_list(orig, dest, vehicle, distance_km, hours, minutes, instructions)
+    function log(msg){
+      const time = new Date().toLocaleTimeString();
+      logEl.textContent += `[${time}] ${msg}\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
 
-        next_btn = tk.Button(nav_win, text="Next Step", command=show_step, bg="blue", fg="white")
-        next_btn.pack(pady=5)
+    // ------------------ Helpers ------------------
+    async function geocode(q){
+      if(!q || q.trim()==='') throw new Error('Empty location');
+      const params = new URLSearchParams({q:q, limit:1, key:API_KEY});
+      const res = await fetch(GEOCODE_URL + '?' + params);
+      const status = res.status;
+      const data = await res.json();
+      if(status !== 200 || !data.hits || data.hits.length===0){
+        throw new Error(data.message || `Geocode returned ${status}`);
+      }
+      const h = data.hits[0];
+      const lat = h.point.lat; const lng = h.point.lng;
+      const name = h.name || q;
+      return {lat,lng,name};
+    }
 
-        tk.Button(nav_win, text="Close Trip", command=nav_win.destroy, bg="red", fg="white").pack(pady=5)
+    async function getRoute(orig, dest, vehicle){
+      const params = new URLSearchParams({key:API_KEY, vehicle:vehicle, points_encoded:'false', instructions:'true'});
+      // add two point params manually
+      const full = `${ROUTE_URL}?${params.toString()}&point=${encodeURIComponent(orig.lat + ',' + orig.lng)}&point=${encodeURIComponent(dest.lat + ',' + dest.lng)}`;
+      const r = await fetch(full);
+      const status = r.status;
+      const data = await r.json();
+      if(status !== 200) throw new Error(data.message || `Routing returned ${status}`);
+      return data;
+    }
 
-        show_step()  # show first step immediately
+    function milesFromMeters(m){ return m/1000/1.61; }
+    function kmFromMeters(m){ return m/1000; }
 
-    else:  # Full list mode only
-        show_full_list(orig, dest, vehicle, distance_km, hours, minutes, instructions)
+    function pickArrow(text){
+      const t = (text||'').toLowerCase();
+      if(t.includes('left')) return `   <<<<<\n  <<    \n<<   \n  <<    \n   <<<<<`;
+      if(t.includes('right')) return `>>>>>\n    >>\n      >>\n    >>\n>>>>>`;
+      if(t.includes('u-turn') || t.includes('u turn')) return `  ^^^^^^^^    \n  ^      ^\n  ^      ^\n  ^      ^\n  ^      ^`;
+      if(t.includes('straight') || t.includes('continue')) return `   ^  \n ^ ^ ^ \n   ^  \n   ^  \n   ^  `;
+      return `>>>>>\n    >>\n      >>\n    >>\n>>>>>`;
+    }
 
-# ===============================
-# GUI Setup
-# ===============================
-root = tk.Tk()
-root.title("MapQuest")
+    function renderSummary(data, origName, destName, vehicle){
+      const path = data.paths[0];
+      const meters = path.distance; const timeMs = path.time; 
+      const sec = Math.floor((timeMs/1000)%60);
+      const min = Math.floor((timeMs/1000/60)%60);
+      const hr = Math.floor((timeMs/1000/60/60));
+      summaryEl.innerHTML = `<div>START: <strong style="color:var(--white)">${origName}</strong> → END: <strong style="color:var(--white)">${destName}</strong></div>
+        <div style="margin-top:8px">Distance: <strong>${milesFromMeters(meters).toFixed(1)} miles</strong> / <strong>${kmFromMeters(meters).toFixed(1)} km</strong></div>
+        <div>Duration: <strong>${String(hr).padStart(2,'0')}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}</strong> • Vehicle: <strong>${vehicle}</strong></div>`;
+    }
 
-# Title
-tk.Label(root, text="MapQuest", font=("Arial", 16, "bold")).grid(row=0, column=0, columnspan=2, pady=5)
+    function createInstructionBox(idx, step){
+      const wrapper = document.createElement('div');
+      wrapper.className = 'inst-box';
+      wrapper.dataset.index = idx;
 
-# Inputs
-tk.Label(root, text="Starting Location:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-start_entry = tk.Entry(root, width=40)
-start_entry.grid(row=1, column=1, padx=5, pady=5)
+      const arrow = document.createElement('div');
+      arrow.className = 'arrow';
+      arrow.textContent = pickArrow(step.text);
 
-tk.Label(root, text="Destination:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
-dest_entry = tk.Entry(root, width=40)
-dest_entry.grid(row=2, column=1, padx=5, pady=5)
+      const text = document.createElement('div');
+      text.className = 'inst-text';
+      const street = step.street_name ? ` via ${step.street_name}` : '';
+      text.innerHTML = `<strong>${idx}. ${step.text}</strong><div style="font-size:12px;margin-top:6px">${street} • ${ (step.distance/1000).toFixed(2) } km / ${ (step.distance/1000/1.61).toFixed(2) } miles</div>`;
 
-tk.Label(root, text="Travel Mode:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
-vehicle_var = tk.StringVar(value="Car")
-vehicle_menu = tk.OptionMenu(root, vehicle_var, "Car", "Bike", "Foot")
-vehicle_menu.grid(row=3, column=1, padx=5, pady=5, sticky="w")
+      wrapper.appendChild(arrow);
+      wrapper.appendChild(text);
+      return wrapper;
+    }
 
-# Step-by-step option
-step_mode_var = tk.BooleanVar(value=False)
-tk.Checkbutton(root, text="Step-by-step mode", variable=step_mode_var).grid(row=4, column=0, columnspan=2, pady=5)
+    function renderInstructionsList(all){
+      instContainer.innerHTML = '';
+      all.forEach((s,i)=>{
+        const el = createInstructionBox(i+1, s);
+        instContainer.appendChild(el);
+      });
+    }
 
-# Buttons
-tk.Button(root, text="Start Navigation", command=start_navigation, bg="green", fg="white").grid(row=5, column=0, columnspan=2, pady=5)
-tk.Button(root, text="Help", command=show_help).grid(row=6, column=0, columnspan=2, pady=5)
+    function highlightCurrent(){
+      Array.from(instContainer.children).forEach((c)=>{c.style.opacity=0.45; c.style.transform='scale(0.98)';});
+      const cur = instContainer.querySelector(`[data-index='${currentIndex+1}']`);
+      if(cur){cur.style.opacity=1; cur.style.transform='scale(1)'; cur.scrollIntoView({behavior:'smooth',block:'center'});}
+    }
 
-root.mainloop()
+    function startTrip(){
+      if(instructions.length===0) return;
+      tripActive = true;
+      stepByStep = stepModeEl.checked;
+      currentIndex = 0;
+      highlightCurrent();
+      log('Trip started. Step-by-step: ' + stepByStep);
+    }
+
+    function cancelTrip(){
+      if(!tripActive) return;
+      tripActive = false;
+      log('Trip terminated by user (Esc/Cancel).');
+      summaryEl.textContent = 'Trip cancelled.';
+    }
+
+    function nextStep(){
+      if(!tripActive) return;
+      if(currentIndex < instructions.length-1){
+        currentIndex++;
+        highlightCurrent();
+      } else {
+        log('Reached destination.');
+        tripActive = false;
+      }
+    }
+    function prevStep(){
+      if(!tripActive) return;
+      if(currentIndex>0){currentIndex--; highlightCurrent();}
+    }
+
+    // ------------------ Event bindings ------------------
+    goBtn.addEventListener('click', async ()=>{
+      try{
+        log('Resolving origin...');
+        const orig = await geocode(originEl.value);
+        log(`Origin: ${orig.name} (${orig.lat},${orig.lng})`);
+
+        log('Resolving destination...');
+        const dest = await geocode(destEl.value);
+        log(`Destination: ${dest.name} (${dest.lat},${dest.lng})`);
+
+        log('Requesting route...');
+        const route = await getRoute(orig, dest, vehicleEl.value);
+        log('Route received.');
+
+        const path = route.paths[0];
+        instructions = path.instructions || [];
+        renderSummary(route, orig.name, dest.name, vehicleEl.value);
+        renderInstructionsList(instructions);
+        startTrip();
+      }catch(err){
+        log('Error: ' + err.message);
+        summaryEl.textContent = 'Error: ' + err.message;
+      }
+    });
+
+    helpBtn.addEventListener('click', ()=>{ helpPanel.classList.toggle('hidden'); });
+    clearBtn.addEventListener('click', ()=>{ originEl.value=''; destEl.value=''; instContainer.innerHTML=''; summaryEl.textContent='No route calculated yet'; log('Cleared inputs.'); instructions=[]; tripActive=false; });
+
+    nextBtn.addEventListener('click', ()=>{ if(!tripActive) return; nextStep(); });
+    prevBtn.addEventListener('click', ()=>{ if(!tripActive) return; prevStep(); });
+    cancelBtn.addEventListener('click', ()=>{ cancelTrip(); });
+
+    // Keyboard: Esc cancels trip; Enter advances when step-by-step mode and trip is active
+    window.addEventListener('keydown',(e)=>{
+      if(e.key === 'Escape'){
+        cancelTrip();
+      }
+      if(e.key === 'Enter'){
+        if(tripActive && stepModeEl.checked){
+          e.preventDefault();
+          nextStep();
+        }
+      }
+    });
+
+    // expose for debugging in console
+    window._navApp = {log, geocode, getRoute};
+
+    // initial help visible
+    helpPanel.classList.remove('hidden');
+
+  </script>
+</body>
+</html>
