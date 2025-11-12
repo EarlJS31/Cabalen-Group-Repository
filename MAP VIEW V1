@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Navigation App — GraphHopper</title>
+
+<!-- Leaflet Map -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<style>
+  body {
+    font-family: "Segoe UI", sans-serif;
+    background-color: #f0fff0;
+    margin: 0;
+    padding: 0;
+    color: #0a4d26;
+  }
+  header {
+    background-color: #0b7a3a;
+    color: white;
+    text-align: center;
+    padding: 16px;
+    font-size: 1.6em;
+    letter-spacing: 0.5px;
+  }
+  main {
+    padding: 16px;
+    max-width: 900px;
+    margin: auto;
+  }
+  #map {
+    height: 400px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+  }
+  #directions {
+    background-color: #f8fff8;
+    border: 1px solid #cde8cd;
+    border-radius: 8px;
+    padding: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+    font-size: 15px;
+    line-height: 1.5;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  .direction-box {
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .direction-box:hover {
+    background-color: #e8ffe8;
+  }
+  .active-step {
+    background-color: #b2f2bb !important;
+    border: 1px solid #0b7a3a;
+  }
+  #logs {
+    background: #fff;
+    padding: 8px;
+    margin-top: 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid #cde8cd;
+  }
+</style>
+</head>
+<body>
+  <header>🗺️ Navigation App (GraphHopper)</header>
+
+  <main>
+    <label>Mode of travel:
+      <select id="vehicle">
+        <option value="car">Car</option>
+        <option value="bike">Bike</option>
+        <option value="foot">Foot</option>
+      </select>
+    </label><br><br>
+
+    <label>Start location: </label>
+    <input type="text" id="start" placeholder="e.g. Manila"><br><br>
+
+    <label>Destination: </label>
+    <input type="text" id="end" placeholder="e.g. Quezon City"><br><br>
+
+    <label>Step-by-step mode:
+      <input type="checkbox" id="stepMode">
+    </label>
+    <button id="getRoute">Get Route</button>
+
+    <div id="map"></div>
+
+    <h3 style="color:#0b7a3a;">🧭 Step-by-Step Directions</h3>
+    <div id="directions"></div>
+
+    <h3 style="color:#0b7a3a;">📜 Logs</h3>
+    <div id="logs"></div>
+  </main>
+
+<script>
+const key = "52e25290-c412-4b79-8f13-1c81ad58e97b";
+let map = L.map('map').setView([14.5995, 120.9842], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+}).addTo(map);
+
+let routeLayer = null;
+let stepMarkers = [];
+
+function logMsg(msg) {
+  const logs = document.getElementById('logs');
+  const p = document.createElement('div');
+  p.textContent = msg;
+  logs.appendChild(p);
+  logs.scrollTop = logs.scrollHeight;
+}
+
+async function geocode(loc) {
+  const url = `https://graphhopper.com/api/1/geocode?q=${encodeURIComponent(loc)}&limit=1&key=${key}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if (data.hits.length > 0) {
+    const p = data.hits[0].point;
+    return [p.lat, p.lng];
+  } else throw new Error("Location not found: " + loc);
+}
+
+document.getElementById("getRoute").addEventListener("click", async () => {
+  const start = document.getElementById("start").value.trim();
+  const end = document.getElementById("end").value.trim();
+  const vehicle = document.getElementById("vehicle").value;
+  const stepMode = document.getElementById("stepMode").checked;
+  const directionsDiv = document.getElementById("directions");
+  directionsDiv.innerHTML = "";
+
+  if (!start || !end) {
+    alert("Please enter both start and destination.");
+    return;
+  }
+
+  try {
+    logMsg("Geocoding locations...");
+    const [origLat, origLng] = await geocode(start);
+    const [destLat, destLng] = await geocode(end);
+
+    logMsg("Requesting route from GraphHopper...");
+    const routeUrl = `https://graphhopper.com/api/1/route?point=${origLat},${origLng}&point=${destLat},${destLng}&vehicle=${vehicle}&locale=en&key=${key}`;
+    const res = await fetch(routeUrl);
+    const data = await res.json();
+
+    if (!data.paths || data.paths.length === 0) {
+      logMsg("No route found.");
+      return;
+    }
+
+    const path = data.paths[0];
+    const coords = path.points.coordinates.map(c => [c[1], c[0]]); // lon,lat → lat,lon
+
+    // Clear previous route and markers
+    if (routeLayer) map.removeLayer(routeLayer);
+    stepMarkers.forEach(m => map.removeLayer(m));
+    stepMarkers = [];
+
+    // Draw route line
+    routeLayer = L.polyline(coords, { color: "#0b7a3a", weight: 5 }).addTo(map);
+    map.fitBounds(routeLayer.getBounds());
+
+    // Add start and end markers
+    const startMarker = L.marker(coords[0]).addTo(map).bindPopup("Start: " + start);
+    const endMarker = L.marker(coords[coords.length-1]).addTo(map).bindPopup("End: " + end);
+    stepMarkers.push(startMarker, endMarker);
+
+    logMsg("Route loaded. Distance: " + (path.distance/1000).toFixed(2) + " km");
+
+    // Display directions
+    const instructions = path.instructions;
+    instructions.forEach((step, index) => {
+      const lower = step.text.toLowerCase();
+      const sym = lower.includes('left') ? '⬅️' :
+                  lower.includes('right') ? '➡️' :
+                  lower.includes('continue') ? '⬆️' :
+                  lower.includes('roundabout') ? '🔄' :
+                  lower.includes('u-turn') ? '↩️' :
+                  lower.includes('destination') ? '🏁' : '⬆️';
+
+      const box = document.createElement('div');
+      box.className = "direction-box";
+      box.innerHTML = `<span style="font-size:1.4em;">${sym}</span>
+                       <span style="font-weight:500;">${index + 1}. ${step.text}</span>`;
+      directionsDiv.appendChild(box);
+
+      // If step-by-step mode, highlight segment on click
+      if (stepMode) {
+        box.addEventListener('click', () => {
+          document.querySelectorAll('.direction-box').forEach(b => b.classList.remove('active-step'));
+          box.classList.add('active-step');
+          const p = step.points.coordinates.map(c => [c[1], c[0]]);
+          stepMarkers.forEach(m => map.removeLayer(m));
+          stepMarkers = [];
+          const tempLayer = L.polyline(p, { color: "yellow", weight: 6 }).addTo(map);
+          stepMarkers.push(tempLayer);
+          map.fitBounds(tempLayer.getBounds());
+        });
+      }
+    });
+
+  } catch (err) {
+    console.error(err);
+    logMsg("Error: " + err.message);
+  }
+});
+</script>
+</body>
+</html>
