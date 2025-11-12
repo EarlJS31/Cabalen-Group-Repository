@@ -1,332 +1,312 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Navigation App — GraphHopper</title>
-  <style>
-    :root{
-      --green: #0b7a3a; /* heavy green */
-      --light-green: #6cd37a;
-      --white: #ffffff;
-      --yellow: #ffd700;
-      --muted: #f6f6f6;
-      --box-shadow: 0 6px 18px rgba(11,122,58,0.12);
-      --mono: "Courier New", Courier, monospace;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GraphHopper</title>
 
-    html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background:var(--white); color:#0b3b20}
-    .app{max-width:980px;margin:28px auto;padding:18px;border-radius:12px;background:linear-gradient(180deg,var(--muted),var(--white));box-shadow:var(--box-shadow)}
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-    header{display:flex;align-items:center;gap:14px}
-    header .logo{width:56px;height:56px;border-radius:10px;background:var(--green);display:flex;align-items:center;justify-content:center;color:var(--white);font-weight:700;font-size:20px}
-    header h1{margin:0;font-size:20px}
+<!-- Google Font -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
 
-    .controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
-    .card{background:var(--white);padding:12px;border-radius:10px;border:2px solid rgba(11,122,58,0.06)}
+<style>
+  body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #f3fff3;
+    color: #0b3d1b;
+    margin: 0;
+    padding: 0;
+  }
 
-    label{display:block;font-size:13px;color:#134a28;margin-bottom:6px}
-    input[type=text], select{width:100%;padding:10px;border-radius:8px;border:1px solid #dfeee0}
+  header {
+    background-color: #0b7a3a;
+    color: #fff;
+    text-align: center;
+    padding: 16px;
+    font-size: 1.6em;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
 
-    .actions{display:flex;gap:8px;margin-top:8px}
-    button{background:var(--green);color:var(--white);border:none;padding:10px 12px;border-radius:8px;cursor:pointer}
-    button.secondary{background:var(--white);color:var(--green);border:2px solid var(--green)}
-    .accent{background:var(--yellow);color:#3b2b00;padding:6px 8px;border-radius:6px;font-weight:600}
+  main {
+    padding: 20px;
+    max-width: 900px;
+    margin: auto;
+  }
 
-    .output{margin-top:18px;display:flex;gap:12px}
-    .left{flex:1}
-    .right{width:360px}
+  label {
+    font-weight: 500;
+  }
 
-    .summary{padding:12px;border-radius:10px;background:linear-gradient(90deg,var(--light-green),var(--green));color:var(--white);font-weight:600}
+  input, select {
+    padding: 8px 10px;
+    border: 1px solid #b6e0b8;
+    border-radius: 6px;
+    margin-top: 4px;
+    width: 100%;
+    font-family: 'Poppins', sans-serif;
+    font-size: 15px;
+  }
 
-    .instructions{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+  button {
+    background-color: #0b7a3a;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 16px;
+    font-size: 15px;
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+    transition: background 0.2s;
+  }
 
-    /* boxed instruction (imitates the terminal box) */
-    .inst-box{font-family:var(--mono);background:linear-gradient(180deg,rgba(11,122,58,0.08),rgba(11,122,58,0.02));border-left:6px solid var(--green);padding:12px;border-radius:10px}
-    .arrow{white-space:pre;font-family:var(--mono);color:var(--green);font-size:13px}
-    .inst-text{margin-top:8px;color:#063d1d}
+  button:hover {
+    background-color: #0d8c41;
+  }
 
-    .help{margin-top:12px;padding:10px;border-radius:8px;background:#fffbe6;border:1px solid #fff1b8}
+  #map {
+    height: 420px;
+    border-radius: 10px;
+    margin: 20px 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
 
-    .hidden{display:none}
+  h3 {
+    color: #0b7a3a;
+    margin-top: 25px;
+  }
 
-    footer{margin-top:14px;font-size:13px;color:#4b6b4b}
+  #directions {
+    background-color: #ffffff;
+    border: 1px solid #d9efd9;
+    border-radius: 10px;
+    padding: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+    font-size: 15px;
+    line-height: 1.5;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  }
 
-    @media (max-width:900px){.controls{grid-template-columns:1fr;}.right{width:100%}}
-  </style>
+  .direction-box {
+    background-color: #f8fff8;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .direction-box:hover {
+    background-color: #e0ffe5;
+  }
+
+  .active-step {
+    background-color: #c2f7c6 !important;
+    border: 1px solid #0b7a3a;
+  }
+
+  #logs {
+    background: #fff;
+    padding: 10px;
+    border-radius: 10px;
+    font-size: 13px;
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid #d9efd9;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  }
+
+</style>
 </head>
 <body>
-  <div class="app">
-    <header>
-      <div class="logo">NH</div>
-      <div>
-        <h1>Navigation App — GraphHopper</h1>
-        <div style="font-size:13px;color:#285231">Step-by-step directions • Press <span class="accent">Esc</span> to cancel • Yellow accents</div>
-      </div>
-    </header>
+  <header>🗺️ GraphHopper</header>
 
-    <div class="controls">
-      <div class="card">
-        <label for="vehicle">Method of travel</label>
-        <select id="vehicle">
-          <option>car</option>
-          <option>bike</option>
-          <option>foot</option>
-        </select>
+  <main>
+    <label>Mode of travel:</label>
+    <select id="vehicle">
+      <option value="car">Car</option>
+      <option value="bike">Bike</option>
+      <option value="foot">Foot</option>
+    </select><br><br>
 
-        <label for="origin" style="margin-top:10px">Starting location</label>
-        <input id="origin" type="text" placeholder="e.g. University of Santo Tomas, Manila" />
+    <label>Start location:</label>
+    <input type="text" id="start" placeholder="e.g. Manila"><br><br>
 
-        <label for="destination" style="margin-top:10px">Destination</label>
-        <input id="destination" type="text" placeholder="e.g. Rizal Park, Manila" />
+    <label>Destination:</label>
+    <input type="text" id="end" placeholder="e.g. Quezon City"><br><br>
 
-        <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
-          <input id="stepMode" type="checkbox" />
-          <label for="stepMode">Step-by-step navigation</label>
-        </div>
+    <label><input type="checkbox" id="stepMode"> Step-by-step mode</label>
+    <br><br>
 
-        <div class="actions">
-          <button id="go">Get Directions</button>
-          <button class="secondary" id="helpBtn">Help</button>
-          <button class="secondary" id="clearBtn">Clear</button>
-        </div>
+    <button id="getRoute">🚗 Get Route</button>
 
-        <div class="help" id="helpPanel">
-          <strong>Help Guide</strong>
-          <ul>
-            <li>Enter 'car', 'bike', or 'foot' as travel method.</li>
-            <li>Type origin and destination, then click <em>Get Directions</em>.</li>
-            <li>Toggle Step-by-step to advance with <kbd>Enter</kbd>. Press <kbd>Esc</kbd> anytime to cancel.</li>
-            <li>Errors from the API will be shown below.</li>
-          </ul>
-        </div>
-      </div>
+    <div id="map"></div>
 
-      <div class="card right">
-        <div class="summary" id="summary">No route calculated yet</div>
+    <h3>🧭 Step-by-Step Directions</h3>
+    <div id="directions"></div>
 
-        <div class="instructions" id="instructions" style="max-height:520px;overflow:auto;margin-top:12px">
-          <!-- Instruction boxes will be appended here -->
-        </div>
+    <h3>📜 Logs</h3>
+    <div id="logs"></div>
+  </main>
 
-        <div style="margin-top:12px;display:flex;gap:8px">
-          <button id="prev" class="secondary">Prev</button>
-          <button id="next" class="secondary">Next</button>
-          <button id="cancel" class="secondary">Cancel Trip (Esc)</button>
-        </div>
-      </div>
-    </div>
+<script>
+const key = "52e25290-c412-4b79-8f13-1c81ad58e97b";
+let map = L.map('map').setView([14.5995, 120.9842], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+}).addTo(map);
 
-    <div class="output left">
-      <div class="card" style="width:100%">
-        <h3 style="margin-top:0">Console / Logs</h3>
-        <pre id="log" style="height:160px;overflow:auto;background:#fbfff9;padding:12px;border-radius:8px;border:1px solid #edf9ee"></pre>
-      </div>
-    </div>
+let routeLayer = null;
+let stepMarkers = [];
 
-    <footer>Created from your Python terminal app — converted to browser UI. GraphHopper API key used from your code. Use responsibly.</footer>
-  </div>
+function logMsg(msg) {
+  const logs = document.getElementById('logs');
+  const p = document.createElement('div');
+  p.textContent = msg;
+  logs.appendChild(p);
+  logs.scrollTop = logs.scrollHeight;
+}
 
-  <script>
-    // ------------------ CONFIG ------------------
-    const API_KEY = "52e25290-c412-4b79-8f13-1c81ad58e97b"; // taken from your script
-    const GEOCODE_URL = "https://graphhopper.com/api/1/geocode";
-    const ROUTE_URL = "https://graphhopper.com/api/1/route";
+async function geocode(loc) {
+  const url = `https://graphhopper.com/api/1/geocode?q=${encodeURIComponent(loc)}&limit=1&key=${key}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if (data.hits.length > 0) {
+    const p = data.hits[0].point;
+    return [p.lat, p.lng];
+  } else throw new Error("Location not found: " + loc);
+}
 
-    // ------------------ UI refs ------------------
-    const vehicleEl = document.getElementById('vehicle');
-    const originEl = document.getElementById('origin');
-    const destEl = document.getElementById('destination');
-    const goBtn = document.getElementById('go');
-    const helpBtn = document.getElementById('helpBtn');
-    const helpPanel = document.getElementById('helpPanel');
-    const clearBtn = document.getElementById('clearBtn');
-    const summaryEl = document.getElementById('summary');
-    const instContainer = document.getElementById('instructions');
-    const logEl = document.getElementById('log');
-    const stepModeEl = document.getElementById('stepMode');
-    const prevBtn = document.getElementById('prev');
-    const nextBtn = document.getElementById('next');
-    const cancelBtn = document.getElementById('cancel');
+function decodePolyline(encoded) {
+  let points = [];
+  let index = 0, lat = 0, lng = 0;
+  while (index < encoded.length) {
+    let b, shift = 0, result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    let dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+    lat += dlat;
 
-    // ------------------ STATE ------------------
-    let instructions = [];
-    let currentIndex = 0;
-    let stepByStep = false;
-    let tripActive = false;
+    shift = 0;
+    result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    let dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+    lng += dlng;
 
-    function log(msg){
-      const time = new Date().toLocaleTimeString();
-      logEl.textContent += `[${time}] ${msg}\n`;
-      logEl.scrollTop = logEl.scrollHeight;
+    points.push([lat / 1e5, lng / 1e5]);
+  }
+  return points;
+}
+
+document.getElementById("getRoute").addEventListener("click", async () => {
+  const start = document.getElementById("start").value.trim();
+  const end = document.getElementById("end").value.trim();
+  const vehicle = document.getElementById("vehicle").value;
+  const stepMode = document.getElementById("stepMode").checked;
+  const directionsDiv = document.getElementById("directions");
+  directionsDiv.innerHTML = "";
+
+  if (!start || !end) {
+    alert("Please enter both start and destination.");
+    return;
+  }
+
+  try {
+    logMsg("Geocoding locations...");
+    const [origLat, origLng] = await geocode(start);
+    const [destLat, destLng] = await geocode(end);
+
+    logMsg("Requesting route from GraphHopper...");
+    const routeUrl = `https://graphhopper.com/api/1/route?point=${origLat},${origLng}&point=${destLat},${destLng}&vehicle=${vehicle}&locale=en&key=${key}&points_encoded=true`;
+    const res = await fetch(routeUrl);
+    const data = await res.json();
+
+    if (!data.paths || data.paths.length === 0) {
+      logMsg("No route found.");
+      return;
     }
 
-    // ------------------ Helpers ------------------
-    async function geocode(q){
-      if(!q || q.trim()==='') throw new Error('Empty location');
-      const params = new URLSearchParams({q:q, limit:1, key:API_KEY});
-      const res = await fetch(GEOCODE_URL + '?' + params);
-      const status = res.status;
-      const data = await res.json();
-      if(status !== 200 || !data.hits || data.hits.length===0){
-        throw new Error(data.message || `Geocode returned ${status}`);
-      }
-      const h = data.hits[0];
-      const lat = h.point.lat; const lng = h.point.lng;
-      const name = h.name || q;
-      return {lat,lng,name};
+    const path = data.paths[0];
+    let coords = [];
+
+    if (path.points && path.points.coordinates) {
+      coords = path.points.coordinates.map(c => [c[1], c[0]]);
+    } else if (path.points_encoded && path.points) {
+      coords = decodePolyline(path.points);
+    } else if (path.points_encoded && path.points_encoded !== undefined) {
+      coords = decodePolyline(path.points_encoded);
+    } else {
+      throw new Error("Route data invalid.");
     }
 
-    async function getRoute(orig, dest, vehicle){
-      const params = new URLSearchParams({key:API_KEY, vehicle:vehicle, points_encoded:'false', instructions:'true'});
-      // add two point params manually
-      const full = `${ROUTE_URL}?${params.toString()}&point=${encodeURIComponent(orig.lat + ',' + orig.lng)}&point=${encodeURIComponent(dest.lat + ',' + dest.lng)}`;
-      const r = await fetch(full);
-      const status = r.status;
-      const data = await r.json();
-      if(status !== 200) throw new Error(data.message || `Routing returned ${status}`);
-      return data;
-    }
+    // Clear previous layers
+    if (routeLayer) map.removeLayer(routeLayer);
+    stepMarkers.forEach(m => map.removeLayer(m));
+    stepMarkers = [];
 
-    function milesFromMeters(m){ return m/1000/1.61; }
-    function kmFromMeters(m){ return m/1000; }
+    // Draw main route
+    routeLayer = L.polyline(coords, { color: "#0b7a3a", weight: 5 }).addTo(map);
+    map.fitBounds(routeLayer.getBounds());
 
-    function pickArrow(text){
-      const t = (text||'').toLowerCase();
-      if(t.includes('left')) return `   <<<<<\n  <<    \n<<   \n  <<    \n   <<<<<`;
-      if(t.includes('right')) return `>>>>>\n    >>\n      >>\n    >>\n>>>>>`;
-      if(t.includes('u-turn') || t.includes('u turn')) return `  ^^^^^^^^    \n  ^      ^\n  ^      ^\n  ^      ^\n  ^      ^`;
-      if(t.includes('straight') || t.includes('continue')) return `   ^  \n ^ ^ ^ \n   ^  \n   ^  \n   ^  `;
-      return `>>>>>\n    >>\n      >>\n    >>\n>>>>>`;
-    }
+    // Add start and end markers
+    const startMarker = L.marker(coords[0]).addTo(map).bindPopup("Start: " + start);
+    const endMarker = L.marker(coords[coords.length - 1]).addTo(map).bindPopup("End: " + end);
+    stepMarkers.push(startMarker, endMarker);
 
-    function renderSummary(data, origName, destName, vehicle){
-      const path = data.paths[0];
-      const meters = path.distance; const timeMs = path.time; 
-      const sec = Math.floor((timeMs/1000)%60);
-      const min = Math.floor((timeMs/1000/60)%60);
-      const hr = Math.floor((timeMs/1000/60/60));
-      summaryEl.innerHTML = `<div>START: <strong style="color:var(--white)">${origName}</strong> → END: <strong style="color:var(--white)">${destName}</strong></div>
-        <div style="margin-top:8px">Distance: <strong>${milesFromMeters(meters).toFixed(1)} miles</strong> / <strong>${kmFromMeters(meters).toFixed(1)} km</strong></div>
-        <div>Duration: <strong>${String(hr).padStart(2,'0')}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}</strong> • Vehicle: <strong>${vehicle}</strong></div>`;
-    }
+    logMsg(`Route loaded. Distance: ${(path.distance / 1000).toFixed(2)} km`);
 
-    function createInstructionBox(idx, step){
-      const wrapper = document.createElement('div');
-      wrapper.className = 'inst-box';
-      wrapper.dataset.index = idx;
+    // Directions display
+    const instructions = path.instructions || [];
+    instructions.forEach((step, index) => {
+      const lower = step.text?.toLowerCase() || "";
+      const sym = lower.includes('left') ? '⬅️' :
+                  lower.includes('right') ? '➡️' :
+                  lower.includes('continue') ? '⬆️' :
+                  lower.includes('roundabout') ? '🔄' :
+                  lower.includes('u-turn') ? '↩️' :
+                  lower.includes('destination') ? '🏁' : '⬆️';
 
-      const arrow = document.createElement('div');
-      arrow.className = 'arrow';
-      arrow.textContent = pickArrow(step.text);
+      const box = document.createElement('div');
+      box.className = "direction-box";
+      box.innerHTML = `<span style="font-size:1.3em;">${sym}</span>
+                       <span style="font-weight:500;">${index + 1}. ${step.text}</span>`;
+      directionsDiv.appendChild(box);
 
-      const text = document.createElement('div');
-      text.className = 'inst-text';
-      const street = step.street_name ? ` via ${step.street_name}` : '';
-      text.innerHTML = `<strong>${idx}. ${step.text}</strong><div style="font-size:12px;margin-top:6px">${street} • ${ (step.distance/1000).toFixed(2) } km / ${ (step.distance/1000/1.61).toFixed(2) } miles</div>`;
+      if (stepMode && step.points) {
+        box.addEventListener('click', () => {
+          document.querySelectorAll('.direction-box').forEach(b => b.classList.remove('active-step'));
+          box.classList.add('active-step');
 
-      wrapper.appendChild(arrow);
-      wrapper.appendChild(text);
-      return wrapper;
-    }
+          const p = step.points.coordinates.map(c => [c[1], c[0]]);
+          stepMarkers.forEach(m => map.removeLayer(m));
+          stepMarkers = [];
 
-    function renderInstructionsList(all){
-      instContainer.innerHTML = '';
-      all.forEach((s,i)=>{
-        const el = createInstructionBox(i+1, s);
-        instContainer.appendChild(el);
-      });
-    }
-
-    function highlightCurrent(){
-      Array.from(instContainer.children).forEach((c)=>{c.style.opacity=0.45; c.style.transform='scale(0.98)';});
-      const cur = instContainer.querySelector(`[data-index='${currentIndex+1}']`);
-      if(cur){cur.style.opacity=1; cur.style.transform='scale(1)'; cur.scrollIntoView({behavior:'smooth',block:'center'});}
-    }
-
-    function startTrip(){
-      if(instructions.length===0) return;
-      tripActive = true;
-      stepByStep = stepModeEl.checked;
-      currentIndex = 0;
-      highlightCurrent();
-      log('Trip started. Step-by-step: ' + stepByStep);
-    }
-
-    function cancelTrip(){
-      if(!tripActive) return;
-      tripActive = false;
-      log('Trip terminated by user (Esc/Cancel).');
-      summaryEl.textContent = 'Trip cancelled.';
-    }
-
-    function nextStep(){
-      if(!tripActive) return;
-      if(currentIndex < instructions.length-1){
-        currentIndex++;
-        highlightCurrent();
-      } else {
-        log('Reached destination.');
-        tripActive = false;
-      }
-    }
-    function prevStep(){
-      if(!tripActive) return;
-      if(currentIndex>0){currentIndex--; highlightCurrent();}
-    }
-
-    // ------------------ Event bindings ------------------
-    goBtn.addEventListener('click', async ()=>{
-      try{
-        log('Resolving origin...');
-        const orig = await geocode(originEl.value);
-        log(`Origin: ${orig.name} (${orig.lat},${orig.lng})`);
-
-        log('Resolving destination...');
-        const dest = await geocode(destEl.value);
-        log(`Destination: ${dest.name} (${dest.lat},${dest.lng})`);
-
-        log('Requesting route...');
-        const route = await getRoute(orig, dest, vehicleEl.value);
-        log('Route received.');
-
-        const path = route.paths[0];
-        instructions = path.instructions || [];
-        renderSummary(route, orig.name, dest.name, vehicleEl.value);
-        renderInstructionsList(instructions);
-        startTrip();
-      }catch(err){
-        log('Error: ' + err.message);
-        summaryEl.textContent = 'Error: ' + err.message;
+          const tempLayer = L.polyline(p, { color: "yellow", weight: 6 }).addTo(map);
+          stepMarkers.push(tempLayer);
+          map.fitBounds(tempLayer.getBounds());
+        });
       }
     });
-
-    helpBtn.addEventListener('click', ()=>{ helpPanel.classList.toggle('hidden'); });
-    clearBtn.addEventListener('click', ()=>{ originEl.value=''; destEl.value=''; instContainer.innerHTML=''; summaryEl.textContent='No route calculated yet'; log('Cleared inputs.'); instructions=[]; tripActive=false; });
-
-    nextBtn.addEventListener('click', ()=>{ if(!tripActive) return; nextStep(); });
-    prevBtn.addEventListener('click', ()=>{ if(!tripActive) return; prevStep(); });
-    cancelBtn.addEventListener('click', ()=>{ cancelTrip(); });
-
-    // Keyboard: Esc cancels trip; Enter advances when step-by-step mode and trip is active
-    window.addEventListener('keydown',(e)=>{
-      if(e.key === 'Escape'){
-        cancelTrip();
-      }
-      if(e.key === 'Enter'){
-        if(tripActive && stepModeEl.checked){
-          e.preventDefault();
-          nextStep();
-        }
-      }
-    });
-
-    // expose for debugging in console
-    window._navApp = {log, geocode, getRoute};
-
-    // initial help visible
-    helpPanel.classList.remove('hidden');
-
-  </script>
+  } catch (err) {
+    console.error(err);
+    logMsg("Error: " + err.message);
+  }
+});
+</script>
 </body>
 </html>
