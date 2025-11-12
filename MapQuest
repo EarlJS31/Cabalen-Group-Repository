@@ -4,309 +4,394 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GraphHopper</title>
-
-<!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
-<!-- Google Font -->
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
 
 <style>
-  body {
-    font-family: 'Poppins', sans-serif;
-    background-color: #f3fff3;
-    color: #0b3d1b;
-    margin: 0;
-    padding: 0;
-  }
-
-  header {
-    background-color: #0b7a3a;
-    color: #fff;
-    text-align: center;
-    padding: 16px;
-    font-size: 1.6em;
-    letter-spacing: 0.5px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  }
-
-  main {
-    padding: 20px;
-    max-width: 900px;
-    margin: auto;
-  }
-
-  label {
-    font-weight: 500;
-  }
-
-  input, select {
-    padding: 8px 10px;
-    border: 1px solid #b6e0b8;
-    border-radius: 6px;
-    margin-top: 4px;
-    width: 100%;
-    font-family: 'Poppins', sans-serif;
-    font-size: 15px;
-  }
-
-  button {
-    background-color: #0b7a3a;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    padding: 10px 16px;
-    font-size: 15px;
-    cursor: pointer;
-    font-family: 'Poppins', sans-serif;
-    transition: background 0.2s;
-  }
-
-  button:hover {
-    background-color: #0d8c41;
-  }
-
-  #map {
-    height: 420px;
-    border-radius: 10px;
-    margin: 20px 0;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  }
-
-  h3 {
-    color: #0b7a3a;
-    margin-top: 25px;
-  }
-
-  #directions {
-    background-color: #ffffff;
-    border: 1px solid #d9efd9;
-    border-radius: 10px;
-    padding: 10px;
-    max-height: 300px;
-    overflow-y: auto;
-    font-size: 15px;
-    line-height: 1.5;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-  }
-
-  .direction-box {
-    background-color: #f8fff8;
-    border-radius: 8px;
-    padding: 8px 10px;
-    margin-bottom: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-
-  .direction-box:hover {
-    background-color: #e0ffe5;
-  }
-
-  .active-step {
-    background-color: #c2f7c6 !important;
-    border: 1px solid #0b7a3a;
-  }
-
-  #logs {
-    background: #fff;
-    padding: 10px;
-    border-radius: 10px;
-    font-size: 13px;
-    max-height: 150px;
-    overflow-y: auto;
-    border: 1px solid #d9efd9;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-  }
-
+  body { font-family:'Poppins',sans-serif;background:#f3fff3;color:#0b3d1b;margin:0;padding:0; }
+  header { background:#0b7a3a;color:#fff;text-align:center;padding:16px;font-size:1.6em;box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+  main { padding:20px;max-width:900px;margin:auto; }
+  label { font-weight:500;display:inline-flex;align-items:center;gap:6px; }
+  input[type="text"], select { padding:8px 10px;border:1px solid #b6e0b8;border-radius:6px;margin-top:4px;width:100%;font-size:15px; }
+  input[type="checkbox"] { transform:scale(1.2); }
+  button { background:#0b7a3a;color:white;border:none;border-radius:6px;padding:10px 16px;font-size:15px;cursor:pointer;transition:background 0.2s;margin-right:8px; }
+  button:hover { background:#0d8c41; }
+  button:disabled { background:#ccc;cursor:not-allowed; }
+  #map { height:420px;border-radius:10px;margin:20px 0;box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+  #directions, #savedRoutesList { background:#fff;border:1px solid #d9efd9;border-radius:10px;padding:10px;min-height:80px;font-size:15px;box-shadow:0 2px 5px rgba(0,0,0,0.05); }
+  .direction-step { display:flex;align-items:center;gap:10px;padding:8px;border-radius:6px;margin:5px 0;background:#f8fff8; }
+  .direction-step.active { background:#b2f2bb;border:1px solid #0b7a3a; }
+  .step-icon { font-size:1.3em;width:30px;text-align:center; }
+  #navControls { display:none;justify-content:space-between;margin-top:10px; }
+  #logs { background:#fff;padding:10px;border-radius:10px;font-size:13px;max-height:150px;overflow-y:auto;border:1px solid #d9efd9;margin-top:20px;box-shadow:0 2px 5px rgba(0,0,0,0.05); }
+  .route-item { display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid #eee;cursor:pointer;transition:background 0.1s; }
+  .route-item:hover { background:#f5f5f5; }
+  .route-item:last-child { border-bottom:none; }
+  .route-item button { background:#0b3d1b;color:white;padding:5px 10px;font-size:13px; }
+  .route-info { flex-grow:1; }
 </style>
 </head>
 <body>
-  <header>🗺️ GraphHopper</header>
+<header>🗺️ GraphHopper</header>
+<main>
+  <label>Mode of travel:</label>
+  <select id="vehicle">
+    <option value="car">Car</option>
+    <option value="bike">Bike</option>
+    <option value="foot">Foot</option>
+  </select><br><br>
 
-  <main>
-    <label>Mode of travel:</label>
-    <select id="vehicle">
-      <option value="car">Car</option>
-      <option value="bike">Bike</option>
-      <option value="foot">Foot</option>
-    </select><br><br>
+  <label>Start location:</label>
+  <input type="text" id="start" placeholder="e.g. Manila"><br><br>
 
-    <label>Start location:</label>
-    <input type="text" id="start" placeholder="e.g. Manila"><br><br>
+  <label>Destination:</label>
+  <input type="text" id="end" placeholder="e.g. Quezon City"><br><br>
 
-    <label>Destination:</label>
-    <input type="text" id="end" placeholder="e.g. Quezon City"><br><br>
+  <label><input type="checkbox" id="stepMode"> Step-by-step mode</label><br><br>
 
-    <label><input type="checkbox" id="stepMode"> Step-by-step mode</label>
-    <br><br>
-
+  <div class="flex">
     <button id="getRoute">🚗 Get Route</button>
+    <button id="toggleOverlay">📡 Toggle Live Overlay</button>
+    <button id="saveRoute" disabled>💾 Save Route</button>
+  </div>
 
-    <div id="map"></div>
+  <div id="map"></div>
 
-    <h3>🧭 Step-by-Step Directions</h3>
-    <div id="directions"></div>
+  <h3>🧭 Directions</h3>
+  <div id="directions"></div>
 
-    <h3>📜 Logs</h3>
-    <div id="logs"></div>
-  </main>
+  <div id="navControls">
+    <button id="prevStep">⬅️ Previous</button>
+    <button id="nextStep">➡️ Next</button>
+  </div>
+
+  <h3>💾 Saved Routes (<span id="storageModeDisplay">Local Storage</span>)</h3>
+  <div id="savedRoutesList">Loading saved routes...</div>
+
+  <h3>📜 Logs</h3>
+  <div id="logs"></div>
+</main>
 
 <script>
-const key = "52e25290-c412-4b79-8f13-1c81ad58e97b";
-let map = L.map('map').setView([14.5995, 120.9842], 12);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-}).addTo(map);
+  // --- APP STATE & SETUP ---
+  const key = "52e25290-c412-4b79-8f13-1c81ad58e97b";
+  let map, routeLayer, highlightLayer;
+  let steps = [];
+  let stepIndex = 0;
+  let stepModeEnabled = false;
+  let cumulativeCoords = [];
+  let fullCoords = [];
+  let lastCalculatedRoute = null; // Stores data for saving
 
-let routeLayer = null;
-let stepMarkers = [];
-
-function logMsg(msg) {
-  const logs = document.getElementById('logs');
-  const p = document.createElement('div');
-  p.textContent = msg;
-  logs.appendChild(p);
-  logs.scrollTop = logs.scrollHeight;
-}
-
-async function geocode(loc) {
-  const url = `https://graphhopper.com/api/1/geocode?q=${encodeURIComponent(loc)}&limit=1&key=${key}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (data.hits.length > 0) {
-    const p = data.hits[0].point;
-    return [p.lat, p.lng];
-  } else throw new Error("Location not found: " + loc);
-}
-
-function decodePolyline(encoded) {
-  let points = [];
-  let index = 0, lat = 0, lng = 0;
-  while (index < encoded.length) {
-    let b, shift = 0, result = 0;
-    do {
-      b = encoded.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-    let dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
-    lat += dlat;
-
-    shift = 0;
-    result = 0;
-    do {
-      b = encoded.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-    let dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
-    lng += dlng;
-
-    points.push([lat / 1e5, lng / 1e5]);
-  }
-  return points;
-}
-
-document.getElementById("getRoute").addEventListener("click", async () => {
-  const start = document.getElementById("start").value.trim();
-  const end = document.getElementById("end").value.trim();
-  const vehicle = document.getElementById("vehicle").value;
-  const stepMode = document.getElementById("stepMode").checked;
-  const directionsDiv = document.getElementById("directions");
-  directionsDiv.innerHTML = "";
-
-  if (!start || !end) {
-    alert("Please enter both start and destination.");
-    return;
+  const LOCAL_STORAGE_KEY = "navigation_saved_routes";
+  
+  function logMsg(msg){
+    const logs = document.getElementById('logs');
+    const p = document.createElement('div');
+    p.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    logs.appendChild(p);
+    logs.scrollTop = logs.scrollHeight;
   }
 
-  try {
-    logMsg("Geocoding locations...");
-    const [origLat, origLng] = await geocode(start);
-    const [destLat, destLng] = await geocode(end);
+  // --- LOCAL STORAGE FUNCTIONS ---
 
-    logMsg("Requesting route from GraphHopper...");
-    const routeUrl = `https://graphhopper.com/api/1/route?point=${origLat},${origLng}&point=${destLat},${destLng}&vehicle=${vehicle}&locale=en&key=${key}&points_encoded=true`;
-    const res = await fetch(routeUrl);
-    const data = await res.json();
+  function getSavedRoutes() {
+    try {
+      const routesJson = localStorage.getItem(LOCAL_STORAGE_KEY);
+      return routesJson ? JSON.parse(routesJson) : [];
+    } catch (e) {
+      logMsg("Error loading routes from localStorage: " + e.message);
+      return [];
+    }
+  }
 
-    if (!data.paths || data.paths.length === 0) {
-      logMsg("No route found.");
+  function saveRouteToLocalStorage(route) {
+    let routes = getSavedRoutes();
+    // Assign a simple unique ID (timestamp + random number for safety)
+    route.id = Date.now() + Math.floor(Math.random() * 1000); 
+    routes.push(route);
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(routes));
+      logMsg(`Route saved successfully to localStorage (ID: ${route.id})!`);
+      document.getElementById("saveRoute").disabled = true; 
+      renderSavedRoutes(); // Refresh the list
+    } catch (e) {
+      logMsg("Failed to save route to localStorage. Storage full?");
+      console.error("localStorage Save Error:", e);
+    }
+  }
+
+  function deleteRouteFromLocalStorage(routeId) {
+    let routes = getSavedRoutes();
+    const routeIdInt = parseInt(routeId);
+    const updatedRoutes = routes.filter(route => route.id !== routeIdInt);
+    
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedRoutes));
+      logMsg(`Route ${routeId} deleted from localStorage.`);
+      renderSavedRoutes(); // Refresh the list
+    } catch (e) {
+      logMsg("Failed to delete route from localStorage.");
+      console.error("localStorage Delete Error:", e);
+    }
+  }
+
+  function renderSavedRoutes() {
+    const savedRoutesList = document.getElementById('savedRoutesList');
+    const routes = getSavedRoutes();
+    savedRoutesList.innerHTML = '';
+
+    if (routes.length === 0) {
+      savedRoutesList.innerHTML = 'No saved routes yet. They will appear here after you save one!';
       return;
     }
 
-    const path = data.paths[0];
-    let coords = [];
+    routes.forEach(route => {
+      const item = document.createElement('div');
+      item.className = 'route-item';
 
-    if (path.points && path.points.coordinates) {
-      coords = path.points.coordinates.map(c => [c[1], c[0]]);
-    } else if (path.points_encoded && path.points) {
-      coords = decodePolyline(path.points);
-    } else if (path.points_encoded && path.points_encoded !== undefined) {
-      coords = decodePolyline(path.points_encoded);
+      const date = new Date(route.timestamp).toLocaleDateString();
+      item.innerHTML = `
+        <div class="route-info" data-route-id="${route.id}">
+          <strong>${route.startName} → ${route.endName}</strong>
+          <small>(${route.vehicle}, Saved: ${date})</small>
+        </div>
+        <button class="load-btn" data-route-id="${route.id}">Load</button>
+        <button class="delete-btn" data-route-id="${route.id}">Delete</button>
+      `;
+
+      item.querySelector('.load-btn').addEventListener('click', () => loadRoute(route));
+      item.querySelector('.delete-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteRouteFromLocalStorage(route.id);
+      });
+
+      savedRoutesList.appendChild(item);
+    });
+    logMsg(`Loaded ${routes.length} saved routes from localStorage.`);
+  }
+  
+  // Attach save event listener
+  document.getElementById("saveRoute").addEventListener("click", () => {
+    if (lastCalculatedRoute) {
+      saveRouteToLocalStorage(lastCalculatedRoute);
     } else {
-      throw new Error("Route data invalid.");
+      logMsg("Nothing to save. Calculate a route first.");
+    }
+  });
+
+
+  // --- MAP & ROUTING LOGIC ---
+
+  function initMap(){
+    map = L.map('map').setView([14.5995, 120.9842], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution: '© OpenStreetMap'}).addTo(map);
+  }
+
+  function getSymbol(t){
+    const s = t.toLowerCase();
+    if(s.includes("left")) return "⬅️";
+    if(s.includes("right")) return "➡️";
+    if(s.includes("roundabout")) return "🔄";
+    if(s.includes("u-turn")) return "↩️";
+    if(s.includes("destination")) return "🏁";
+    return "⬆️";
+  }
+
+  async function geocode(loc){
+    const url = `https://graphhopper.com/api/1/geocode?q=${encodeURIComponent(loc)}&limit=1&key=${key}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if(data.hits.length > 0){
+      const p = data.hits[0].point;
+      return [p.lat, p.lng];
+    }
+    throw new Error("Location not found: " + loc);
+  }
+
+  function renderRoute(pathData, startName, endName) {
+    const directionsDiv = document.getElementById("directions");
+    const navControls = document.getElementById("navControls");
+    directionsDiv.innerHTML = "";
+
+    // Load path data into global state variables
+    // Note: GraphHopper returns [lng, lat], Leaflet expects [lat, lng]
+    fullCoords = pathData.points.coordinates.map(c => [c[1], c[0]]);
+    steps = pathData.instructions;
+    stepIndex = 0;
+
+    if(routeLayer) map.removeLayer(routeLayer);
+    if(highlightLayer) map.removeLayer(highlightLayer);
+
+    // Update input fields for context
+    document.getElementById("start").value = startName;
+    document.getElementById("end").value = endName;
+
+    if(!stepModeEnabled){
+      navControls.style.display = "none";
+      routeLayer = L.polyline(fullCoords, {color: "#0b7a3a", weight: 5}).addTo(map);
+      map.fitBounds(routeLayer.getBounds());
+      steps.forEach((s, i) => {
+        const div = document.createElement("div");
+        div.className = "direction-step";
+        div.innerHTML = `<span class="step-icon">${getSymbol(s.text)}</span>${i+1}. ${s.text} (${(s.distance / 1000).toFixed(2)} km)`;
+        directionsDiv.appendChild(div);
+      });
+    } else {
+      navControls.style.display = "flex";
+      routeLayer = L.polyline(fullCoords, {color: "#0b7a3a", weight: 3, opacity: 0.4}).addTo(map);
+      showStep();
+    }
+    logMsg(`Route successfully displayed from ${startName} to ${endName}.`);
+  }
+
+  async function getRouteFromAPI() {
+    const start = document.getElementById("start").value.trim();
+    const end = document.getElementById("end").value.trim();
+    const vehicle = document.getElementById("vehicle").value;
+    const stepMode = document.getElementById("stepMode").checked;
+    stepModeEnabled = stepMode;
+
+    if(!start || !end){
+      logMsg("Please enter both start and destination.");
+      return;
     }
 
-    // Clear previous layers
-    if (routeLayer) map.removeLayer(routeLayer);
-    stepMarkers.forEach(m => map.removeLayer(m));
-    stepMarkers = [];
+    try{
+      document.getElementById("saveRoute").disabled = true; // Disable while fetching
+      
+      logMsg("Geocoding...");
+      const [origLat, origLng] = await geocode(start);
+      const [destLat, destLng] = await geocode(end);
 
-    // Draw main route
-    routeLayer = L.polyline(coords, { color: "#0b7a3a", weight: 5 }).addTo(map);
-    map.fitBounds(routeLayer.getBounds());
+      logMsg("Requesting route from GraphHopper...");
+      const url = `https://graphhopper.com/api/1/route?point=${origLat},${origLng}&point=${destLat},${destLng}&vehicle=${vehicle}&locale=en&points_encoded=false&instructions=true&key=${key}`;
+      const res = await fetch(url);
+      const data = await res.json();
 
-    // Add start and end markers
-    const startMarker = L.marker(coords[0]).addTo(map).bindPopup("Start: " + start);
-    const endMarker = L.marker(coords[coords.length - 1]).addTo(map).bindPopup("End: " + end);
-    stepMarkers.push(startMarker, endMarker);
-
-    logMsg(`Route loaded. Distance: ${(path.distance / 1000).toFixed(2)} km`);
-
-    // Directions display
-    const instructions = path.instructions || [];
-    instructions.forEach((step, index) => {
-      const lower = step.text?.toLowerCase() || "";
-      const sym = lower.includes('left') ? '⬅️' :
-                  lower.includes('right') ? '➡️' :
-                  lower.includes('continue') ? '⬆️' :
-                  lower.includes('roundabout') ? '🔄' :
-                  lower.includes('u-turn') ? '↩️' :
-                  lower.includes('destination') ? '🏁' : '⬆️';
-
-      const box = document.createElement('div');
-      box.className = "direction-box";
-      box.innerHTML = `<span style="font-size:1.3em;">${sym}</span>
-                       <span style="font-weight:500;">${index + 1}. ${step.text}</span>`;
-      directionsDiv.appendChild(box);
-
-      if (stepMode && step.points) {
-        box.addEventListener('click', () => {
-          document.querySelectorAll('.direction-box').forEach(b => b.classList.remove('active-step'));
-          box.classList.add('active-step');
-
-          const p = step.points.coordinates.map(c => [c[1], c[0]]);
-          stepMarkers.forEach(m => map.removeLayer(m));
-          stepMarkers = [];
-
-          const tempLayer = L.polyline(p, { color: "yellow", weight: 6 }).addTo(map);
-          stepMarkers.push(tempLayer);
-          map.fitBounds(tempLayer.getBounds());
-        });
+      if(!data.paths || !data.paths.length || !data.paths[0].points || !data.paths[0].points.coordinates){
+        logMsg("No route found or API failed.");
+        return;
       }
-    });
-  } catch (err) {
-    console.error(err);
-    logMsg("Error: " + err.message);
+
+      const path = data.paths[0];
+
+      // Prepare data for saving and rendering
+      lastCalculatedRoute = {
+        startName: start,
+        endName: end,
+        vehicle: vehicle,
+        timestamp: Date.now(),
+        instructions: path.instructions,
+        points: { coordinates: path.points.coordinates }
+      };
+
+      // Render the route
+      renderRoute(path, start, end);
+      
+      // Enable save button (Local Storage is always available)
+      document.getElementById("saveRoute").disabled = false;
+
+    } catch(err){
+      logMsg("Error: " + err.message);
+      // Ensure button is disabled on failure
+      document.getElementById("saveRoute").disabled = true;
+    }
   }
-});
+
+  function loadRoute(routeData) {
+    // Set vehicle mode
+    document.getElementById("vehicle").value = routeData.vehicle;
+    document.getElementById("stepMode").checked = false; // Default to full view when loading
+    stepModeEnabled = false;
+
+    // Use the saved route data directly for rendering
+    renderRoute(routeData, routeData.startName, routeData.endName);
+    document.getElementById("saveRoute").disabled = true;
+    lastCalculatedRoute = null; // Don't allow saving loaded route as new one without modification
+    logMsg(`Loaded saved route: ${routeData.startName} to ${routeData.endName}.`);
+  }
+
+  function showStep(){
+    const step = steps[stepIndex];
+    const directionsDiv = document.getElementById("directions");
+    directionsDiv.innerHTML = `
+      <div class="direction-step active">
+        <span class="step-icon">${getSymbol(step.text)}</span>
+        Step ${stepIndex+1}/${steps.length}: ${step.text} (${(step.distance / 1000).toFixed(2)} km)
+      </div>`;
+
+    if(!step) return;
+
+    cumulativeCoords = [];
+    for (let i = 0; i <= stepIndex; i++) {
+      const currentStep = steps[i];
+      if (currentStep.interval && fullCoords.length) {
+        const [from, to] = currentStep.interval;
+        const stepPoints = fullCoords.slice(from, to + 1);
+        cumulativeCoords = cumulativeCoords.concat(stepPoints);
+      }
+    }
+
+    if(highlightLayer) map.removeLayer(highlightLayer);
+
+    if(cumulativeCoords.length >= 2){
+      highlightLayer = L.polyline(cumulativeCoords, {color: "#ffc107", weight: 8}).addTo(map);
+
+      try{
+        const lastPoint = cumulativeCoords[cumulativeCoords.length - 1];
+        const secondToLastPoint = cumulativeCoords[cumulativeCoords.length - 2] || lastPoint;
+        const bounds = L.latLngBounds([secondToLastPoint, lastPoint]);
+        map.fitBounds(bounds, {maxZoom: 15, padding: [10, 10]});
+
+      }catch(e) {
+        logMsg("Warning: Could not fit map bounds.");
+        console.error(e);
+      }
+    } else if (cumulativeCoords.length === 1) {
+      map.setView(cumulativeCoords[0], 17);
+    }
+  }
+
+  document.getElementById("nextStep").addEventListener("click", () => {
+    if(stepIndex < steps.length - 1){
+      stepIndex++;
+      showStep();
+    }
+  });
+
+  document.getElementById("prevStep").addEventListener("click", () => {
+    if(stepIndex > 0){
+      stepIndex--;
+      showStep();
+    }
+  });
+
+  // --- OVERLAY LOGIC ---
+  let overlayLayer = null;
+  document.getElementById("toggleOverlay").addEventListener("click", () => {
+    if(overlayLayer){
+      map.removeLayer(overlayLayer);
+      overlayLayer = null;
+      logMsg("Overlay (Simulated Data) OFF. Back to standard map.");
+    } else {
+      overlayLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        maxZoom: 17,
+        opacity: 0.5,
+        attribution: 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)'
+      }).addTo(map);
+      logMsg("Overlay (Simulated Data) ON. Showing OpenTopoMap for visualization.");
+      logMsg("NOTE: True real-time traffic requires a commercial API key.");
+    }
+  });
+
+  // --- INITIALIZATION ---
+  document.addEventListener('DOMContentLoaded', () => {
+    initMap();
+    renderSavedRoutes(); // Load saved routes from localStorage on startup
+    document.getElementById("getRoute").addEventListener("click", getRouteFromAPI);
+  });
 </script>
 </body>
 </html>
